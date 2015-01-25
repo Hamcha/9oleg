@@ -21,12 +21,16 @@ func pack(buf []byte, maxlen uint) []byte {
 	switch maxlen {
 	case 1:
 		bytes = le(uint8(length))
+		break
 	case 2:
 		bytes = le(uint16(length))
+		break
 	case 4:
 		bytes = le(uint32(length))
+		break
 	case 8:
 		bytes = le(uint64(length))
+		break
 	}
 	return append(bytes[:], buf[:]...)
 }
