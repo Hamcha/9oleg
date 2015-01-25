@@ -17,16 +17,12 @@ func pack(buf []byte, maxlen uint) []byte {
 	switch maxlen {
 	case 1:
 		bytes = le(uint8(length))
-		break
 	case 2:
 		bytes = le(uint16(length))
-		break
 	case 4:
 		bytes = le(uint32(length))
-		break
 	case 8:
 		bytes = le(uint64(length))
-		break
 	}
 	return append(bytes[:], buf[:]...)
 }
@@ -38,19 +34,15 @@ func le(value interface{}) []byte {
 	case uint8, int8:
 		bsize = 1
 		ivalue = uint64(value.(uint8))
-		break
 	case uint16, int16:
 		bsize = 2
 		ivalue = uint64(value.(uint16))
-		break
 	case uint32, int32:
 		bsize = 4
 		ivalue = uint64(value.(uint32))
-		break
 	case uint64, int64:
 		bsize = 8
 		ivalue = value.(uint64)
-		break
 	}
 	out := make([]byte, bsize)
 	for i := range out {
@@ -69,6 +61,9 @@ func dle(value []byte) (out uint64) {
 
 func dstr(value []byte) string {
 	length := uint16(dle(value[0:2]))
+	if length == 0 {
+		return ""
+	}
 	return string(value[2 : 2+length])
 }
 

@@ -76,10 +76,36 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		if Debug {
 			fmt.Printf("(VERSION) MaxSize %d Version %s\n", ver.MaxSize, ver.Version)
 		}
-		write(s, con, makeMsg(Rversion, msg.Tag, ver))
+		err := write(con, makeMsg(Rversion, msg.Tag, ver))
+		if err != nil {
+			s.OnConnError(err)
+			break
+		}
+	case AuthRequest:
+		auth := data.(AuthRequest)
+		if Debug {
+			fmt.Printf("(AUTH) Afid %08x Uname %s Aname %s\n", auth.Afid, auth.Uname, auth.Aname)
+		}
+		// Send error to signal no auth required
+		err := sendErr(con, msg.Tag, "auth not required")
+		if err != nil {
+			s.OnConnError(err)
+			break
+		}
+	case AttachRequest:
+		att := data.(AttachRequest)
+		if Debug {
+			fmt.Printf("(ATTACH) Fid %08x Afid %08x Uname %s Aname %s\n", att.Fid, att.Afid, att.Uname, att.Aname)
+		}
+		// Do nothing (Auth not implemented yet)
 	case UnknownData:
 		if Debug {
-			fmt.Printf("(UNKNOWN) Type %d Tag %x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
+			fmt.Printf("(UNKNOWN) Type %d Tag %08x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
+		}
+		err := sendErr(con, msg.Tag, "unknown command")
+		if err != nil {
+			s.OnConnError(err)
+			break
 		}
 	}
 }
@@ -94,17 +120,19 @@ func parseAddr(addr string) string {
 	return addr
 }
 
-func write(s *Server, con net.Conn, data []byte) {
+func write(con net.Conn, data []byte) error {
 	remaining := len(data)
 	for remaining > 0 {
 		n, err := con.Write(data)
 		if err != nil {
-			if err.Error() != "EOF" {
-				s.OnConnError(err)
-			}
-			break
+			return err
 		}
 		remaining -= n
 		data = data[n:]
 	}
+	return nil
+}
+
+func sendErr(conn net.Conn, msgTag uint16, msg string) error {
+	return write(conn, makeMsg(Rerror, msgTag, ErrorData{msg}))
 }

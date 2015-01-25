@@ -11,6 +11,13 @@ const (
 	Debug       = true
 )
 
+/* Fcall errors */
+const (
+	NoTag = 0
+	NoFid = 0
+	NoUid = -1
+)
+
 /* Fcall types */
 const (
 	Topenfd  = 98
