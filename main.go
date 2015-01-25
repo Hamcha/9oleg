@@ -13,5 +13,8 @@ func main() {
 		fmt.Println(err.Error())
 	}
 	fmt.Println("Listening on " + listenaddr)
-	vfs.Listen(listenaddr)
+	err := vfs.Listen(listenaddr)
+	if err != nil {
+		panic(err.Error())
+	}
 }

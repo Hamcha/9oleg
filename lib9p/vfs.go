@@ -19,16 +19,24 @@ type Vfs struct {
 
 func (v *Vfs) Listen(address string) error {
 	listen := parseAddr(address)
-	ln, err := net.Listen("udp", listen)
+	udpaddr, err := net.ResolveUDPAddr("udp4", listen)
 	if err != nil {
 		return err
 	}
+
+	conn, err := net.ListenUDP("udp", udpaddr)
+	if err != nil {
+		return err
+	}
+
 	for {
-		conn, err := ln.Accept()
+		n, address, err := conn.ReadFromUDP()
 		if err != nil {
 			v.OnConnError(err)
+			continue
 		}
-		go handle(v, conn)
+
+		//TODO Scrap everything and do it the UDP way..
 	}
 }
 
