@@ -5,7 +5,7 @@
    (each parameter type has a defined number of bytes to specify its length)
    NULL characters (0x00) are forbidden anyway.
 
-   Also, all numbers (including lenght) have to be in Little Endian, so we need
+   Also, all numbers (including length) have to be in Little Endian, so we need
    a shitton of stupid helper functions to correctly serialize them into bytes.
 */
 
