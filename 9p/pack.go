@@ -11,10 +11,6 @@
 
 package lib9p
 
-import (
-	"reflect"
-)
-
 func pack(buf []byte, maxlen uint) []byte {
 	length := len(buf)
 	var bytes []byte
@@ -36,11 +32,30 @@ func pack(buf []byte, maxlen uint) []byte {
 }
 
 func le(value interface{}) []byte {
-	bsize := reflect.Size(value)
+	var bsize int
+	var ivalue uint64
+	switch value := value.(type) {
+	case uint8, int8:
+		bsize = 1
+		ivalue = uint64(value.(uint8))
+		break
+	case uint16, int16:
+		bsize = 2
+		ivalue = uint64(value.(uint16))
+		break
+	case uint32, int32:
+		bsize = 4
+		ivalue = uint64(value.(uint32))
+		break
+	case uint64, int64:
+		bsize = 8
+		ivalue = uint64(value.(uint64))
+		break
+	}
 	out := make([]byte, bsize)
 	for i := range out {
-		out[i] = uint8(value)
-		value <<= 8
+		out[i] = uint8(ivalue)
+		ivalue <<= 8
 	}
 	return out
 }
