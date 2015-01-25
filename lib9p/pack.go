@@ -62,7 +62,7 @@ func le(value interface{}) []byte {
 
 func dle(value []byte) (out uint64) {
 	for i := range value {
-		out |= uint64(uint8(value[i]) << (8 * uint64(i)))
+		out |= uint64(uint64(value[i]) << (8 * uint64(i)))
 	}
 	return
 }

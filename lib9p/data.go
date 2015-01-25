@@ -8,6 +8,7 @@ package lib9p
 const (
 	Version     = "9P2000"
 	DefaultPort = 564
+	Debug       = true
 )
 
 /* Fcall types */

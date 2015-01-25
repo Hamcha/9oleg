@@ -43,7 +43,9 @@ func readClient(s *Server, con net.Conn) {
 		/* Read the total message length */
 		bytes, err := b.Peek(4)
 		if err != nil {
-			s.OnConnError(err)
+			if err.Error() != "EOF" {
+				s.OnConnError(err)
+			}
 			break
 		}
 		length := uint32(dle(bytes))
@@ -68,12 +70,16 @@ func readClient(s *Server, con net.Conn) {
 
 func handle(s *Server, rawmsg []byte) {
 	msg, data := parseMsg(rawmsg)
-	fmt.Printf("Message got: Len %d Type %d\n", msg.Length, msg.Type)
-	fmt.Printf("DATA: %x\n", rawmsg)
 	switch data.(type) {
 	case VersionData:
 		ver := data.(VersionData)
-		fmt.Printf(" (VERSION) MaxSize %x Version %s", ver.MaxSize, ver.Version)
+		if Debug {
+			fmt.Printf("(VERSION) MaxSize %d Version %s\n", ver.MaxSize, ver.Version)
+		}
+	case UnknownData:
+		if Debug {
+			fmt.Printf("(UNKNOWN) Type %d Tag %x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
+		}
 	}
 }
 
