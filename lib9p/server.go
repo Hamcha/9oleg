@@ -64,11 +64,11 @@ func readClient(s *Server, con net.Conn) {
 			remaining -= uint32(n)
 		}
 
-		go handle(s, rawmsg)
+		go handle(s, con, rawmsg)
 	}
 }
 
-func handle(s *Server, rawmsg []byte) {
+func handle(s *Server, con net.Conn, rawmsg []byte) {
 	msg, data := parseMsg(rawmsg)
 	switch data.(type) {
 	case VersionData:
@@ -76,6 +76,7 @@ func handle(s *Server, rawmsg []byte) {
 		if Debug {
 			fmt.Printf("(VERSION) MaxSize %d Version %s\n", ver.MaxSize, ver.Version)
 		}
+		write(s, con, makeMsg(Rversion, msg.Tag, ver))
 	case UnknownData:
 		if Debug {
 			fmt.Printf("(UNKNOWN) Type %d Tag %x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
@@ -91,4 +92,19 @@ func parseAddr(addr string) string {
 		addr = addr + ":" + strconv.Itoa(DefaultPort)
 	}
 	return addr
+}
+
+func write(s *Server, con net.Conn, data []byte) {
+	remaining := len(data)
+	for remaining > 0 {
+		n, err := con.Write(data)
+		if err != nil {
+			if err.Error() != "EOF" {
+				s.OnConnError(err)
+			}
+			break
+		}
+		remaining -= n
+		data = data[n:]
+	}
 }

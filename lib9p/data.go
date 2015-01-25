@@ -21,7 +21,7 @@ const (
 	Rauth    = 103
 	Tattach  = 104
 	Rattach  = 105
-	Terror   = 106 /* illegal */
+	Terror   = 106 /* wait, what? */
 	Rerror   = 107
 	Tflush   = 108
 	Rflush   = 109

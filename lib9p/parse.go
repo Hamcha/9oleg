@@ -33,3 +33,21 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 	}
 	return
 }
+
+func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
+	var bytes []byte
+	switch data.(type) {
+	case VersionData:
+		ver := data.(VersionData)
+		bytes = append(le(uint32(ver.MaxSize))[:], pstr(ver.Version)[:]...)
+	case UnknownData:
+		bytes = data.(UnknownData).Raw
+	}
+	length := uint32(7 + len(bytes)) /* Length(4) + Tag(2) + Type(1) = 7 */
+	msg := make([]byte, length)
+	copy(msg, le(length))
+	msg[4] = msgType
+	copy(msg[5:7], le(msgTag))
+	copy(msg[7:], bytes)
+	return msg
+}

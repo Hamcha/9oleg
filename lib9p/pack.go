@@ -55,7 +55,7 @@ func le(value interface{}) []byte {
 	out := make([]byte, bsize)
 	for i := range out {
 		out[i] = uint8(ivalue)
-		ivalue <<= 8
+		ivalue >>= 8
 	}
 	return out
 }
@@ -70,4 +70,8 @@ func dle(value []byte) (out uint64) {
 func dstr(value []byte) string {
 	length := uint16(dle(value[0:2]))
 	return string(value[2 : 2+length])
+}
+
+func pstr(str string) []byte {
+	return pack([]byte(str), 2)
 }
