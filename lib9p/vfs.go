@@ -7,6 +7,7 @@
 package lib9p
 
 import (
+	"bufio"
 	"net"
 	"strconv"
 	"strings"
@@ -27,12 +28,41 @@ func (v *Vfs) Listen(address string) error {
 		if err != nil {
 			v.OnConnError(err)
 		}
-		go handle(conn)
+		go handle(v, conn)
 	}
 }
 
-func handle(net.Conn) {
-	//TODO
+func handle(v *Vfs, con net.Conn) {
+	b := bufio.NewReader(con)
+	for {
+		/* Read the total message length */
+		bytes, err := b.Peek(4)
+		if err != nil {
+			v.OnConnError(err)
+			break
+		}
+		length := dle(bytes)
+
+		/* Read the whole message */
+		remaining := length
+		rawmsg := make([]byte, 0)
+		for remaining > 0 {
+			bmsg := make([]byte, length)
+			n, err := b.Read(bmsg)
+			if err != nil {
+				v.OnConnError(err)
+				break
+			}
+			rawmsg = append(rawmsg[:], bmsg[:]...)
+			remaining -= uint64(n)
+		}
+
+		go handleMsg(v, rawmsg)
+	}
+}
+
+func handleMsg(v *Vfs, msg []byte) {
+
 }
 
 func parseAddr(addr string) string {

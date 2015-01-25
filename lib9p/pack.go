@@ -1,5 +1,5 @@
 /*
-   Packing utils for sending stuff
+   Packing/Unpacking utils for sending stuff
 
    9P uses PASCALish strings, with the first 4 bytes indicating the length
    (each parameter type has a defined number of bytes to specify its length)
@@ -58,4 +58,11 @@ func le(value interface{}) []byte {
 		ivalue <<= 8
 	}
 	return out
+}
+
+func dle(value []byte) (out uint64) {
+	for i := range value {
+		out |= uint64(uint8(value[i]) << (8 * uint64(i)))
+	}
+	return
 }
