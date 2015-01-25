@@ -70,3 +70,11 @@ func dstr(value []byte) string {
 func pstr(str string) []byte {
 	return pack([]byte(str), 2)
 }
+
+func pqid(qid Qid) []byte {
+	buf := make([]byte, 13)
+	buf[0] = qid.Type
+	copy(buf[1:5], le(qid.Version))
+	copy(buf[5:13], le(qid.PathId))
+	return buf
+}

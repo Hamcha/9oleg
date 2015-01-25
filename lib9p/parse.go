@@ -17,11 +17,23 @@ type AuthRequest struct {
 	Aname string
 }
 
+type AuthResponse struct {
+	Aqid Qid
+}
+
 type AttachRequest struct {
 	Fid   uint32
 	Afid  uint32
 	Uname string
 	Aname string
+}
+
+type AttachResponse struct {
+	Qid Qid
+}
+
+type FlushRequest struct {
+	OldTag uint32
 }
 
 type ErrorData struct {
@@ -60,6 +72,10 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			Uname: uname,
 			Aname: aname,
 		}
+	case Tflush:
+		data = FlushRequest{
+			OldTag: uint32(dle(b[7:11])),
+		}
 	default:
 		data = UnknownData{
 			Raw: b[7:],
@@ -74,10 +90,16 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 	case VersionData:
 		ver := data.(VersionData)
 		bytes = append(le(uint32(ver.MaxSize))[:], pstr(ver.Version)[:]...)
+	case AuthResponse:
+		bytes = pqid(data.(AuthResponse).Aqid)
+	case AttachResponse:
+		bytes = pqid(data.(AttachResponse).Qid)
 	case ErrorData:
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:
 		bytes = data.(UnknownData).Raw
+	case nil:
+		bytes = make([]byte, 0)
 	}
 	length := uint32(7 + len(bytes)) /* Length(4) + Tag(2) + Type(1) = 7 */
 	msg := make([]byte, length)

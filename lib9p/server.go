@@ -16,6 +16,8 @@ import (
 
 type Server struct {
 	OnConnError func(error) /* "On connection error" Handler */
+	OnAuth      func(AuthRequest) AuthResponse
+	OnAttach    func(AttachRequest) AttachResponse
 }
 
 func (s *Server) Listen(address string) error {
@@ -74,7 +76,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 	case VersionData:
 		ver := data.(VersionData)
 		if Debug {
-			fmt.Printf("(VERSION) MaxSize %d Version %s\n", ver.MaxSize, ver.Version)
+			fmt.Printf("(VERSION) MaxSize %d Version \"%s\"\n", ver.MaxSize, ver.Version)
 		}
 		err := write(con, makeMsg(Rversion, msg.Tag, ver))
 		if err != nil {
@@ -84,23 +86,57 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 	case AuthRequest:
 		auth := data.(AuthRequest)
 		if Debug {
-			fmt.Printf("(AUTH) Afid %08x Uname %s Aname %s\n", auth.Afid, auth.Uname, auth.Aname)
+			fmt.Printf("(AUTH) Afid %0#8x Uname \"%s\" Aname \"%s\"\n", auth.Afid, auth.Uname, auth.Aname)
 		}
-		// Send error to signal no auth required
-		err := sendErr(con, msg.Tag, "auth not required")
+		if s.OnAuth != nil {
+			resp := s.OnAuth(auth)
+			err := write(con, makeMsg(Rauth, msg.Tag, resp))
+			if err != nil {
+				s.OnConnError(err)
+				break
+			}
+		} else {
+			err := sendErr(con, msg.Tag, "auth not required")
+			if err != nil {
+				s.OnConnError(err)
+				break
+			}
+		}
+
+	case AttachRequest:
+		att := data.(AttachRequest)
+		if Debug {
+			fmt.Printf("(ATTACH) Fid %0#8x Afid %0#8x Uname \"%s\" Aname \"%s\"\n", att.Fid, att.Afid, att.Uname, att.Aname)
+		}
+		if s.OnAttach != nil {
+			resp := s.OnAttach(att)
+			err := write(con, makeMsg(Rattach, msg.Tag, resp))
+			if err != nil {
+				s.OnConnError(err)
+				break
+			}
+		} else {
+			// This will be fatal
+			err := sendErr(con, msg.Tag, "not implemented")
+			if err != nil {
+				s.OnConnError(err)
+				break
+			}
+		}
+	case FlushRequest:
+		flu := data.(FlushRequest)
+		if Debug {
+			fmt.Printf("(FLUSH) Tag %0#8x OldTag %0#8x\n", msg.Tag, flu.OldTag)
+		}
+		//TODO abort operation with specified tag
+		err := write(con, makeMsg(Rflush, msg.Tag, nil))
 		if err != nil {
 			s.OnConnError(err)
 			break
 		}
-	case AttachRequest:
-		att := data.(AttachRequest)
-		if Debug {
-			fmt.Printf("(ATTACH) Fid %08x Afid %08x Uname %s Aname %s\n", att.Fid, att.Afid, att.Uname, att.Aname)
-		}
-		// Do nothing (Auth not implemented yet)
 	case UnknownData:
 		if Debug {
-			fmt.Printf("(UNKNOWN) Type %d Tag %08x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
+			fmt.Printf("(UNKNOWN) Type %d Tag %0#8x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
 		}
 		err := sendErr(con, msg.Tag, "unknown command")
 		if err != nil {

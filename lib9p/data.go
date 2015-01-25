@@ -13,9 +13,9 @@ const (
 
 /* Fcall errors */
 const (
-	NoTag = 0
-	NoFid = 0
-	NoUid = -1
+	NoTag = 0xffff
+	NoFid = 0xffffffff
+	NoUid = 0xffffffff
 )
 
 /* Fcall types */
@@ -50,4 +50,24 @@ const (
 	Rstat    = 125
 	Twstat   = 126
 	Rwstat   = 127
+)
+
+/* Qid definition and types */
+
+type Qid struct {
+	Type    uint8
+	Version uint32
+	PathId  uint64
+}
+
+const (
+	QtFile    = 0x00
+	QtLink    = 0x01 // 9P2000.u
+	QtSymlink = 0x02 // 9P2000.u
+	QtTmp     = 0x04
+	QtAuth    = 0x08 // for Tauth/Rauth
+	QtMount   = 0x10
+	QtExcl    = 0x20
+	QtAppend  = 0x40
+	QtDir     = 0x80
 )
