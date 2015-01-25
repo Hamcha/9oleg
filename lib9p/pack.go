@@ -49,7 +49,7 @@ func le(value interface{}) []byte {
 		break
 	case uint64, int64:
 		bsize = 8
-		ivalue = uint64(value.(uint64))
+		ivalue = value.(uint64)
 		break
 	}
 	out := make([]byte, bsize)
