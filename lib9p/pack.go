@@ -66,3 +66,8 @@ func dle(value []byte) (out uint64) {
 	}
 	return
 }
+
+func dstr(value []byte) string {
+	length := uint16(dle(value[0:2]))
+	return string(value[2 : 2+length])
+}

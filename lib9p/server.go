@@ -8,69 +8,73 @@ package lib9p
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
 )
 
-type Vfs struct {
+type Server struct {
 	OnConnError func(error) /* "On connection error" Handler */
 }
 
-func (v *Vfs) Listen(address string) error {
+func (s *Server) Listen(address string) error {
 	listen := parseAddr(address)
-	udpaddr, err := net.ResolveUDPAddr("udp4", listen)
-	if err != nil {
-		return err
-	}
 
-	conn, err := net.ListenUDP("udp", udpaddr)
+	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		return err
 	}
 
 	for {
-		n, address, err := conn.ReadFromUDP()
+		conn, err := ln.Accept()
 		if err != nil {
-			v.OnConnError(err)
+			s.OnConnError(err)
 			continue
 		}
 
-		//TODO Scrap everything and do it the UDP way..
+		go readClient(s, conn)
 	}
 }
 
-func handle(v *Vfs, con net.Conn) {
+func readClient(s *Server, con net.Conn) {
 	b := bufio.NewReader(con)
 	for {
 		/* Read the total message length */
 		bytes, err := b.Peek(4)
 		if err != nil {
-			v.OnConnError(err)
+			s.OnConnError(err)
 			break
 		}
-		length := dle(bytes)
+		length := uint32(dle(bytes))
 
 		/* Read the whole message */
 		remaining := length
 		rawmsg := make([]byte, 0)
 		for remaining > 0 {
-			bmsg := make([]byte, length)
+			bmsg := make([]byte, remaining)
 			n, err := b.Read(bmsg)
 			if err != nil {
-				v.OnConnError(err)
+				s.OnConnError(err)
 				break
 			}
 			rawmsg = append(rawmsg[:], bmsg[:]...)
-			remaining -= uint64(n)
+			remaining -= uint32(n)
 		}
 
-		go handleMsg(v, rawmsg)
+		go handle(s, rawmsg)
 	}
 }
 
-func handleMsg(v *Vfs, msg []byte) {
-
+func handle(s *Server, rawmsg []byte) {
+	msg, data := parseMsg(rawmsg)
+	fmt.Printf("Message got: Len %d Type %d\n", msg.Length, msg.Type)
+	fmt.Printf("DATA: %x\n", rawmsg)
+	switch data.(type) {
+	case VersionData:
+		ver := data.(VersionData)
+		fmt.Printf(" (VERSION) MaxSize %x Version %s", ver.MaxSize, ver.Version)
+	}
 }
 
 func parseAddr(addr string) string {

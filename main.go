@@ -8,7 +8,7 @@ import (
 const listenaddr = "*"
 
 func main() {
-	vfs := new(lib9p.Vfs)
+	vfs := new(lib9p.Server)
 	vfs.OnConnError = func(err error) {
 		fmt.Println(err.Error())
 	}
