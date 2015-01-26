@@ -15,9 +15,10 @@ import (
 )
 
 type Server struct {
-	OnConnError func(error) /* "On connection error" Handler */
-	OnAuth      func(AuthRequest) AuthResponse
-	OnAttach    func(AttachRequest) AttachResponse
+	OnConnError func(net.Conn, error) /* "On connection error" Handler */
+	OnAuth      func(net.Conn, AuthRequest) AuthResponse
+	OnAttach    func(net.Conn, AttachRequest) AttachResponse
+	OnWalk      func(net.Conn, WalkRequest) WalkResponse
 }
 
 func (s *Server) Listen(address string) error {
@@ -31,7 +32,7 @@ func (s *Server) Listen(address string) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			s.OnConnError(err)
+			s.OnConnError(conn, err)
 			continue
 		}
 
@@ -46,7 +47,7 @@ func readClient(s *Server, con net.Conn) {
 		bytes, err := b.Peek(4)
 		if err != nil {
 			if err.Error() != "EOF" {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
 			}
 			break
 		}
@@ -59,7 +60,7 @@ func readClient(s *Server, con net.Conn) {
 			bmsg := make([]byte, remaining)
 			n, err := b.Read(bmsg)
 			if err != nil {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
 				break
 			}
 			rawmsg = append(rawmsg[:], bmsg[:]...)
@@ -80,7 +81,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		}
 		err := write(con, makeMsg(Rversion, msg.Tag, ver))
 		if err != nil {
-			s.OnConnError(err)
+			s.OnConnError(con, err)
 			break
 		}
 	case AuthRequest:
@@ -89,37 +90,56 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			fmt.Printf("(AUTH) Afid %0#8x Uname \"%s\" Aname \"%s\"\n", auth.Afid, auth.Uname, auth.Aname)
 		}
 		if s.OnAuth != nil {
-			resp := s.OnAuth(auth)
+			resp := s.OnAuth(con, auth)
 			err := write(con, makeMsg(Rauth, msg.Tag, resp))
 			if err != nil {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
 				break
 			}
 		} else {
 			err := sendErr(con, msg.Tag, "auth not required")
 			if err != nil {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
 				break
 			}
 		}
-
 	case AttachRequest:
 		att := data.(AttachRequest)
 		if Debug {
 			fmt.Printf("(ATTACH) Fid %0#8x Afid %0#8x Uname \"%s\" Aname \"%s\"\n", att.Fid, att.Afid, att.Uname, att.Aname)
 		}
 		if s.OnAttach != nil {
-			resp := s.OnAttach(att)
+			resp := s.OnAttach(con, att)
 			err := write(con, makeMsg(Rattach, msg.Tag, resp))
 			if err != nil {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
 				break
 			}
 		} else {
 			// This will be fatal
 			err := sendErr(con, msg.Tag, "not implemented")
 			if err != nil {
-				s.OnConnError(err)
+				s.OnConnError(con, err)
+				break
+			}
+		}
+	case WalkRequest:
+		walk := data.(WalkRequest)
+		if Debug {
+			fmt.Printf("(WALK) Fid %0#8x NewFid %0#8x NoPaths %d Paths %v\n", walk.Fid, walk.NewFid, walk.NoPaths, walk.Paths)
+		}
+		if s.OnWalk != nil {
+			resp := s.OnWalk(con, walk)
+			err := write(con, makeMsg(Rwalk, msg.Tag, resp))
+			if err != nil {
+				s.OnConnError(con, err)
+				break
+			}
+		} else {
+			// This will be fatal
+			err := sendErr(con, msg.Tag, "not implemented")
+			if err != nil {
+				s.OnConnError(con, err)
 				break
 			}
 		}
@@ -131,7 +151,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		//TODO abort operation with specified tag
 		err := write(con, makeMsg(Rflush, msg.Tag, nil))
 		if err != nil {
-			s.OnConnError(err)
+			s.OnConnError(con, err)
 			break
 		}
 	case UnknownData:
@@ -140,7 +160,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		}
 		err := sendErr(con, msg.Tag, "unknown command")
 		if err != nil {
-			s.OnConnError(err)
+			s.OnConnError(con, err)
 			break
 		}
 	}

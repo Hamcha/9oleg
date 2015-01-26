@@ -32,6 +32,18 @@ type AttachResponse struct {
 	Qid Qid
 }
 
+type WalkRequest struct {
+	Fid     uint32
+	NewFid  uint32
+	NoPaths uint16
+	Paths   []string
+}
+
+type WalkResponse struct {
+	NoQids uint16
+	Qids   []Qid
+}
+
 type FlushRequest struct {
 	OldTag uint32
 }
@@ -72,6 +84,20 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			Uname: uname,
 			Aname: aname,
 		}
+	case Twalk:
+		nopaths := uint16(dle(b[15:17]))
+		paths := make([]string, nopaths)
+		offset := 15
+		for i := range paths {
+			paths[i] = dstr(b[offset:])
+			offset += 2 + len(paths[i])
+		}
+		data = WalkRequest{
+			Fid:     uint32(dle(b[7:11])),
+			NewFid:  uint32(dle(b[11:15])),
+			NoPaths: nopaths,
+			Paths:   paths,
+		}
 	case Tflush:
 		data = FlushRequest{
 			OldTag: uint32(dle(b[7:11])),
@@ -94,6 +120,12 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 		bytes = pqid(data.(AuthResponse).Aqid)
 	case AttachResponse:
 		bytes = pqid(data.(AttachResponse).Qid)
+	case WalkResponse:
+		walk := data.(WalkResponse)
+		bytes = le(uint16(walk.NoQids))
+		for _, x := range walk.Qids {
+			bytes = append(bytes[:], pqid(x)[:]...)
+		}
 	case ErrorData:
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:
