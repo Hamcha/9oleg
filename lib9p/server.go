@@ -16,9 +16,10 @@ import (
 
 type Server struct {
 	OnConnError func(net.Conn, error) /* "On connection error" Handler */
-	OnAuth      func(net.Conn, AuthRequest) AuthResponse
-	OnAttach    func(net.Conn, AttachRequest) AttachResponse
-	OnWalk      func(net.Conn, WalkRequest) WalkResponse
+	OnAuth      func(net.Conn, AuthRequest) (AuthResponse, error)
+	OnAttach    func(net.Conn, AttachRequest) (AttachResponse, error)
+	OnWalk      func(net.Conn, WalkRequest) (WalkResponse, error)
+	OnClunk     func(net.Conn, ClunkRequest) error
 }
 
 func (s *Server) Listen(address string) error {
@@ -84,65 +85,81 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			s.OnConnError(con, err)
 			break
 		}
+
 	case AuthRequest:
 		auth := data.(AuthRequest)
 		if Debug {
 			fmt.Printf("(AUTH) Afid %0#8x Uname \"%s\" Aname \"%s\"\n", auth.Afid, auth.Uname, auth.Aname)
 		}
 		if s.OnAuth != nil {
-			resp := s.OnAuth(con, auth)
-			err := write(con, makeMsg(Rauth, msg.Tag, resp))
+			resp, err := s.OnAuth(con, auth)
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+			}
+			err = write(con, makeMsg(Rauth, msg.Tag, resp))
 			if err != nil {
 				s.OnConnError(con, err)
-				break
 			}
 		} else {
 			err := sendErr(con, msg.Tag, "auth not required")
 			if err != nil {
 				s.OnConnError(con, err)
-				break
 			}
 		}
+
 	case AttachRequest:
 		att := data.(AttachRequest)
 		if Debug {
 			fmt.Printf("(ATTACH) Fid %0#8x Afid %0#8x Uname \"%s\" Aname \"%s\"\n", att.Fid, att.Afid, att.Uname, att.Aname)
 		}
 		if s.OnAttach != nil {
-			resp := s.OnAttach(con, att)
-			err := write(con, makeMsg(Rattach, msg.Tag, resp))
+			resp, err := s.OnAttach(con, att)
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+			}
+			err = write(con, makeMsg(Rattach, msg.Tag, resp))
 			if err != nil {
 				s.OnConnError(con, err)
-				break
 			}
-		} else {
-			// This will be fatal
-			err := sendErr(con, msg.Tag, "not implemented")
-			if err != nil {
-				s.OnConnError(con, err)
-				break
-			}
+			break
 		}
+		sendErr(con, msg.Tag, "not implemented")
+
 	case WalkRequest:
 		walk := data.(WalkRequest)
 		if Debug {
 			fmt.Printf("(WALK) Fid %0#8x NewFid %0#8x NoPaths %d Paths %v\n", walk.Fid, walk.NewFid, walk.NoPaths, walk.Paths)
 		}
 		if s.OnWalk != nil {
-			resp := s.OnWalk(con, walk)
-			err := write(con, makeMsg(Rwalk, msg.Tag, resp))
+			resp, err := s.OnWalk(con, walk)
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+			}
+			err = write(con, makeMsg(Rwalk, msg.Tag, resp))
 			if err != nil {
 				s.OnConnError(con, err)
-				break
 			}
-		} else {
-			// This will be fatal
-			err := sendErr(con, msg.Tag, "not implemented")
-			if err != nil {
-				s.OnConnError(con, err)
-				break
-			}
+			break
 		}
+		sendErr(con, msg.Tag, "not implemented")
+
+	case ClunkRequest:
+		if Debug {
+			fmt.Printf("(CLUNK) Fid %0#8x\n", data.(ClunkRequest).Fid)
+		}
+		if s.OnClunk != nil {
+			err := s.OnClunk(con, data.(ClunkRequest))
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+			}
+			err = write(con, makeMsg(Rclunk, msg.Tag, nil))
+			if err != nil {
+				s.OnConnError(con, err)
+			}
+			break
+		}
+		sendErr(con, msg.Tag, "not implemented")
+
 	case FlushRequest:
 		flu := data.(FlushRequest)
 		if Debug {
@@ -152,17 +169,13 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		err := write(con, makeMsg(Rflush, msg.Tag, nil))
 		if err != nil {
 			s.OnConnError(con, err)
-			break
 		}
+
 	case UnknownData:
 		if Debug {
 			fmt.Printf("(UNKNOWN) Type %d Tag %0#8x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
 		}
-		err := sendErr(con, msg.Tag, "unknown command")
-		if err != nil {
-			s.OnConnError(con, err)
-			break
-		}
+		sendErr(con, msg.Tag, "unknown command")
 	}
 }
 

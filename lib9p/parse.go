@@ -44,6 +44,32 @@ type WalkResponse struct {
 	Qids   []Qid
 }
 
+type ClunkRequest struct {
+	Fid uint32
+}
+
+type OpenRequest struct {
+	Fid  uint32
+	Mode uint8
+}
+
+type OpenResponse struct {
+	Qid    Qid
+	IoUnit uint32
+}
+
+type CreateRequest struct {
+	Fid        uint32
+	Name       string
+	Permission uint32
+	Mode       uint8
+}
+
+type CreateResponse struct {
+	Qid    Qid
+	IoUnit uint32
+}
+
 type FlushRequest struct {
 	OldTag uint32
 }
@@ -97,6 +123,10 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			NewFid:  uint32(dle(b[11:15])),
 			NoPaths: nopaths,
 			Paths:   paths,
+		}
+	case Tclunk:
+		data = ClunkRequest{
+			Fid: uint32(dle(b[7:11])),
 		}
 	case Tflush:
 		data = FlushRequest{
