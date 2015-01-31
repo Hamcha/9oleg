@@ -50,6 +50,12 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			Fid:  uint32(dle(b[7:11])),
 			Mode: uint8(b[11]),
 		}
+	case Tread:
+		data = ReadRequest{
+			Fid:    uint32(dle(b[7:11])),
+			Offset: uint64(dle(b[11:19])),
+			Count:  uint32(dle(b[19:23])),
+		}
 	case Tflush:
 		data = FlushRequest{
 			OldTag: uint32(dle(b[7:11])),
@@ -86,6 +92,8 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:
 		bytes = data.(UnknownData).Raw
+	case []byte:
+		bytes = data.([]byte)
 	case nil:
 		bytes = make([]byte, 0)
 	}

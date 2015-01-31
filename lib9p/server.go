@@ -20,6 +20,7 @@ type Server struct {
 	OnAttach    func(net.Conn, AttachRequest) (AttachResponse, error)
 	OnWalk      func(net.Conn, WalkRequest) (WalkResponse, error)
 	OnOpen      func(net.Conn, OpenRequest) (OpenResponse, error)
+	OnRead      func(net.Conn, ReadRequest) ([]byte, error)
 	OnClunk     func(net.Conn, ClunkRequest) error
 }
 
@@ -96,6 +97,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			resp, err := s.OnAuth(con, auth)
 			if err != nil {
 				sendErr(con, msg.Tag, err.Error())
+				break
 			}
 			err = write(con, makeMsg(Rauth, msg.Tag, resp))
 			if err != nil {
@@ -117,6 +119,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			resp, err := s.OnAttach(con, att)
 			if err != nil {
 				sendErr(con, msg.Tag, err.Error())
+				break
 			}
 			err = write(con, makeMsg(Rattach, msg.Tag, resp))
 			if err != nil {
@@ -135,6 +138,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			resp, err := s.OnWalk(con, walk)
 			if err != nil {
 				sendErr(con, msg.Tag, err.Error())
+				break
 			}
 			err = write(con, makeMsg(Rwalk, msg.Tag, resp))
 			if err != nil {
@@ -152,6 +156,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			err := s.OnClunk(con, data.(ClunkRequest))
 			if err != nil {
 				sendErr(con, msg.Tag, err.Error())
+				break
 			}
 			err = write(con, makeMsg(Rclunk, msg.Tag, nil))
 			if err != nil {
@@ -170,8 +175,29 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			resp, err := s.OnOpen(con, open)
 			if err != nil {
 				sendErr(con, msg.Tag, err.Error())
+				break
 			}
 			err = write(con, makeMsg(Ropen, msg.Tag, resp))
+			if err != nil {
+				s.OnConnError(con, err)
+			}
+			break
+		}
+		sendErr(con, msg.Tag, "not implemented")
+
+	case ReadRequest:
+		read := data.(ReadRequest)
+		if Debug {
+			fmt.Printf("(READ) Fid %0#8x Offset %0#16x Count %0#8x \n", read.Fid, read.Offset, read.Count)
+		}
+		if s.OnRead != nil {
+			resp, err := s.OnRead(con, read)
+			resp = append(le(uint32(len(resp)))[:], resp[:]...)
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+				break
+			}
+			err = write(con, makeMsg(Rread, msg.Tag, resp))
 			if err != nil {
 				s.OnConnError(con, err)
 			}

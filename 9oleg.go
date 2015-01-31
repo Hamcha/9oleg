@@ -25,6 +25,7 @@ func makeFs(dbdir string, dbname string) *lib9p.Server {
 	vfs.OnWalk = ofs.Walk
 	vfs.OnClunk = ofs.Clunk
 	vfs.OnOpen = ofs.Open
+	vfs.OnRead = ofs.Read
 	return vfs
 }
 
@@ -86,5 +87,10 @@ func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResp
 	out.IoUnit = 2048
 
 	client.Fids[req.Fid] = client.Pwd[:]
+	return
+}
+
+func (ofs *OlegFs) Read(con net.Conn, req lib9p.ReadRequest) (b []byte, err error) {
+	b = make([]byte, 0)
 	return
 }
