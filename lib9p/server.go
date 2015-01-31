@@ -223,6 +223,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 			if err != nil {
 				s.OnConnError(con, err)
 			}
+			break
 		}
 		sendErr(con, msg.Tag, "not implemented")
 

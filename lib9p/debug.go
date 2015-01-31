@@ -37,8 +37,10 @@ func debugWrt(msgType uint8, msgTag uint16, data interface{}) {
 		fmt.Printf(col(CSend, "R(READ) - Data (%d bytes) -\n"), dle(data.([]byte)[0:4]))
 	case Rclunk:
 		fmt.Printf(col(CSend, "R(CLUNK)\n"))
+	case Rflush:
+		fmt.Printf(col(CSend, "R(FLUSH)\n"))
 	default:
-		fmt.Printf(col(CSend, "R(UNKNOWN) %v"), data)
+		fmt.Printf(col(CSend, "R(UNKNOWN) %v\n"), data)
 	}
 }
 
