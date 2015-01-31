@@ -1,87 +1,5 @@
 package lib9p
 
-type MessageInfo struct {
-	Length uint32
-	Type   uint8
-	Tag    uint16
-}
-
-type VersionData struct {
-	MaxSize uint32
-	Version string
-}
-
-type AuthRequest struct {
-	Afid  uint32
-	Uname string
-	Aname string
-}
-
-type AuthResponse struct {
-	Aqid Qid
-}
-
-type AttachRequest struct {
-	Fid   uint32
-	Afid  uint32
-	Uname string
-	Aname string
-}
-
-type AttachResponse struct {
-	Qid Qid
-}
-
-type WalkRequest struct {
-	Fid     uint32
-	NewFid  uint32
-	NoPaths uint16
-	Paths   []string
-}
-
-type WalkResponse struct {
-	NoQids uint16
-	Qids   []Qid
-}
-
-type ClunkRequest struct {
-	Fid uint32
-}
-
-type OpenRequest struct {
-	Fid  uint32
-	Mode uint8
-}
-
-type OpenResponse struct {
-	Qid    Qid
-	IoUnit uint32
-}
-
-type CreateRequest struct {
-	Fid        uint32
-	Name       string
-	Permission uint32
-	Mode       uint8
-}
-
-type CreateResponse struct {
-	Qid    Qid
-	IoUnit uint32
-}
-
-type FlushRequest struct {
-	OldTag uint32
-}
-
-type ErrorData struct {
-	Message string
-}
-
-type UnknownData struct {
-	Raw []byte
-}
-
 func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 	msg.Length = uint32(dle(b[0:4]))
 	msg.Type = uint8(b[4])
@@ -128,6 +46,11 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 		data = ClunkRequest{
 			Fid: uint32(dle(b[7:11])),
 		}
+	case Topen:
+		data = OpenRequest{
+			Fid:  uint32(dle(b[7:11])),
+			Mode: uint8(b[11]),
+		}
 	case Tflush:
 		data = FlushRequest{
 			OldTag: uint32(dle(b[7:11])),
@@ -145,17 +68,21 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 	switch data.(type) {
 	case VersionData:
 		ver := data.(VersionData)
-		bytes = append(le(uint32(ver.MaxSize))[:], pstr(ver.Version)[:]...)
+		bytes = append(le(ver.MaxSize)[:], pstr(ver.Version)[:]...)
 	case AuthResponse:
 		bytes = pqid(data.(AuthResponse).Aqid)
 	case AttachResponse:
 		bytes = pqid(data.(AttachResponse).Qid)
 	case WalkResponse:
 		walk := data.(WalkResponse)
-		bytes = le(uint16(walk.NoQids))
+		bytes = le(walk.NoQids)
 		for _, x := range walk.Qids {
 			bytes = append(bytes[:], pqid(x)[:]...)
 		}
+	case OpenResponse:
+		open := data.(OpenResponse)
+		bytes = pqid(open.Qid)
+		bytes = append(bytes[:], le(open.IoUnit)[:]...)
 	case ErrorData:
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:

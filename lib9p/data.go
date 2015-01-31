@@ -71,3 +71,96 @@ const (
 	QtAppend  = 0x40
 	QtDir     = 0x80
 )
+
+/* I/O modes */
+const (
+	MRead   = 0x00
+	MWrite  = 0x01
+	MRdwr   = 0x02 // ReadWrite
+	MExec   = 0x03
+	MTrunc  = 0x10
+	MRclose = 0x40
+	MDmDir  = 0x80
+)
+
+type MessageInfo struct {
+	Length uint32
+	Type   uint8
+	Tag    uint16
+}
+
+type VersionData struct {
+	MaxSize uint32
+	Version string
+}
+
+type AuthRequest struct {
+	Afid  uint32
+	Uname string
+	Aname string
+}
+
+type AuthResponse struct {
+	Aqid Qid
+}
+
+type AttachRequest struct {
+	Fid   uint32
+	Afid  uint32
+	Uname string
+	Aname string
+}
+
+type AttachResponse struct {
+	Qid Qid
+}
+
+type WalkRequest struct {
+	Fid     uint32
+	NewFid  uint32
+	NoPaths uint16
+	Paths   []string
+}
+
+type WalkResponse struct {
+	NoQids uint16
+	Qids   []Qid
+}
+
+type ClunkRequest struct {
+	Fid uint32
+}
+
+type OpenRequest struct {
+	Fid  uint32
+	Mode uint8
+}
+
+type OpenResponse struct {
+	Qid    Qid
+	IoUnit uint32
+}
+
+type CreateRequest struct {
+	Fid        uint32
+	Name       string
+	Permission uint32
+	Mode       uint8
+}
+
+type CreateResponse struct {
+	Qid    Qid
+	IoUnit uint32
+}
+
+type FlushRequest struct {
+	OldTag uint32
+}
+
+type ErrorData struct {
+	Message string
+}
+
+type UnknownData struct {
+	Raw []byte
+}

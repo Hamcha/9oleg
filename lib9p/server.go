@@ -19,6 +19,7 @@ type Server struct {
 	OnAuth      func(net.Conn, AuthRequest) (AuthResponse, error)
 	OnAttach    func(net.Conn, AttachRequest) (AttachResponse, error)
 	OnWalk      func(net.Conn, WalkRequest) (WalkResponse, error)
+	OnOpen      func(net.Conn, OpenRequest) (OpenResponse, error)
 	OnClunk     func(net.Conn, ClunkRequest) error
 }
 
@@ -153,6 +154,24 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 				sendErr(con, msg.Tag, err.Error())
 			}
 			err = write(con, makeMsg(Rclunk, msg.Tag, nil))
+			if err != nil {
+				s.OnConnError(con, err)
+			}
+			break
+		}
+		sendErr(con, msg.Tag, "not implemented")
+
+	case OpenRequest:
+		open := data.(OpenRequest)
+		if Debug {
+			fmt.Printf("(OPEN) Fid %0#8x Mode %0#2x\n", open.Fid, open.Mode)
+		}
+		if s.OnOpen != nil {
+			resp, err := s.OnOpen(con, open)
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+			}
+			err = write(con, makeMsg(Ropen, msg.Tag, resp))
 			if err != nil {
 				s.OnConnError(con, err)
 			}
