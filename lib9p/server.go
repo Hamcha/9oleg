@@ -129,7 +129,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 	case WalkRequest:
 		walk := data.(WalkRequest)
 		if Debug {
-			fmt.Printf("(WALK) Fid %0#8x NewFid %0#8x NoPaths %d Paths %v\n", walk.Fid, walk.NewFid, walk.NoPaths, walk.Paths)
+			fmt.Printf("(WALK) Fid %0#8x NewFid %0#8x Paths %v\n", walk.Fid, walk.NewFid, walk.Paths)
 		}
 		if s.OnWalk != nil {
 			resp, err := s.OnWalk(con, walk)

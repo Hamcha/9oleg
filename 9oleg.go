@@ -8,7 +8,8 @@ import (
 )
 
 type Client struct {
-	Fids map[uint32]string
+	Pwd  []string
+	Fids map[uint32][]string
 }
 
 type OlegFs struct {
@@ -38,20 +39,22 @@ func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.Atta
 		PathId:  0,
 	}
 	ofs.clients[con] = Client{
-		Fids: make(map[uint32]string),
+		Pwd:  make([]string, 0),
+		Fids: make(map[uint32][]string),
 	}
 	return
 }
 
 func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResponse, err error) {
-	out.NoQids = req.NoPaths
-	out.Qids = make([]lib9p.Qid, req.NoPaths)
+	out.Qids = make([]lib9p.Qid, len(req.Paths))
 	for i := range out.Qids {
 		out.Qids[i] = lib9p.Qid{
 			Type:    lib9p.QtDir,
 			Version: 1,
 			PathId:  0,
 		}
+		fmt.Printf("Walking to %s..\n", req.Paths[i])
+		//todo Add fid
 	}
 	return
 }
@@ -69,5 +72,19 @@ func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
 }
 
 func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResponse, err error) {
+	client, ok := ofs.clients[con]
+	if !ok {
+		err = errors.New("Client not found - Please attach first")
+		return
+	}
 
+	out.Qid = lib9p.Qid{
+		Type:    lib9p.QtDir,
+		Version: 1,
+		PathId:  0,
+	}
+	out.IoUnit = 2048
+
+	client.Fids[req.Fid] = client.Pwd[:]
+	return
 }

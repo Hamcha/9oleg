@@ -37,10 +37,9 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			offset += 2 + len(paths[i])
 		}
 		data = WalkRequest{
-			Fid:     uint32(dle(b[7:11])),
-			NewFid:  uint32(dle(b[11:15])),
-			NoPaths: nopaths,
-			Paths:   paths,
+			Fid:    uint32(dle(b[7:11])),
+			NewFid: uint32(dle(b[11:15])),
+			Paths:  paths,
 		}
 	case Tclunk:
 		data = ClunkRequest{
@@ -75,7 +74,7 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 		bytes = pqid(data.(AttachResponse).Qid)
 	case WalkResponse:
 		walk := data.(WalkResponse)
-		bytes = le(walk.NoQids)
+		bytes = le(uint16(len(walk.Qids)))
 		for _, x := range walk.Qids {
 			bytes = append(bytes[:], pqid(x)[:]...)
 		}

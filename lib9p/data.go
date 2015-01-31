@@ -116,15 +116,13 @@ type AttachResponse struct {
 }
 
 type WalkRequest struct {
-	Fid     uint32
-	NewFid  uint32
-	NoPaths uint16
-	Paths   []string
+	Fid    uint32
+	NewFid uint32
+	Paths  []string
 }
 
 type WalkResponse struct {
-	NoQids uint16
-	Qids   []Qid
+	Qids []Qid
 }
 
 type ClunkRequest struct {
@@ -151,6 +149,12 @@ type CreateRequest struct {
 type CreateResponse struct {
 	Qid    Qid
 	IoUnit uint32
+}
+
+type ReadRequest struct {
+	Fid    uint32
+	Offset uint64
+	Count  uint32
 }
 
 type FlushRequest struct {
