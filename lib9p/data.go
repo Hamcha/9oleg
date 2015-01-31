@@ -80,8 +80,32 @@ const (
 	MExec   = 0x03
 	MTrunc  = 0x10
 	MRclose = 0x40
-	MDmDir  = 0x80
 )
+
+/* Stat definition and types */
+
+type Stat struct {
+	Type   uint16
+	Dev    uint32
+	Qid    Qid
+	Mode   uint32
+	Atime  uint32
+	Mtime  uint32
+	Length uint64
+	Name   string
+	Uid    string
+	Gid    string
+	Muid   string
+}
+
+const (
+	DmDir    = 0x80000000
+	DmAppend = 0x40000000
+	DmExcl   = 0x20000000
+	DmTmp    = 0x04000000
+)
+
+/* Messages */
 
 type MessageInfo struct {
 	Length uint32
@@ -155,6 +179,19 @@ type ReadRequest struct {
 	Fid    uint32
 	Offset uint64
 	Count  uint32
+}
+
+type StatRequest struct {
+	Fid uint32
+}
+
+type StatResponse struct {
+	Stat Stat
+}
+
+type WstatRequest struct {
+	Fid  uint32
+	Stat Stat
 }
 
 type FlushRequest struct {

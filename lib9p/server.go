@@ -21,6 +21,7 @@ type Server struct {
 	OnWalk      func(net.Conn, WalkRequest) (WalkResponse, error)
 	OnOpen      func(net.Conn, OpenRequest) (OpenResponse, error)
 	OnRead      func(net.Conn, ReadRequest) ([]byte, error)
+	OnStat      func(net.Conn, StatRequest) (StatResponse, error)
 	OnClunk     func(net.Conn, ClunkRequest) error
 }
 
@@ -188,7 +189,7 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 	case ReadRequest:
 		read := data.(ReadRequest)
 		if Debug {
-			fmt.Printf("(READ) Fid %0#8x Offset %0#16x Count %0#8x \n", read.Fid, read.Offset, read.Count)
+			fmt.Printf("(READ) Fid %0#8x Offset %0#16x Count %0#8x\n", read.Fid, read.Offset, read.Count)
 		}
 		if s.OnRead != nil {
 			resp, err := s.OnRead(con, read)
@@ -202,6 +203,23 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 				s.OnConnError(con, err)
 			}
 			break
+		}
+		sendErr(con, msg.Tag, "not implemented")
+
+	case StatRequest:
+		if Debug {
+			fmt.Printf("(STAT) Fid %0#8x\n", data.(StatRequest).Fid)
+		}
+		if s.OnStat != nil {
+			resp, err := s.OnStat(con, data.(StatRequest))
+			if err != nil {
+				sendErr(con, msg.Tag, err.Error())
+				break
+			}
+			err = write(con, makeMsg(Rstat, msg.Tag, resp))
+			if err != nil {
+				s.OnConnError(con, err)
+			}
 		}
 		sendErr(con, msg.Tag, "not implemented")
 

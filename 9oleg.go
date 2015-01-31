@@ -26,6 +26,7 @@ func makeFs(dbdir string, dbname string) *lib9p.Server {
 	vfs.OnClunk = ofs.Clunk
 	vfs.OnOpen = ofs.Open
 	vfs.OnRead = ofs.Read
+	vfs.OnStat = ofs.Stat
 	return vfs
 }
 
@@ -67,7 +68,7 @@ func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
 	}
 
 	if _, ok = client.Fids[req.Fid]; !ok {
-		return errors.New("inexistant fid")
+		return errors.New("nonexistant fid")
 	}
 	return nil
 }
@@ -92,5 +93,26 @@ func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResp
 
 func (ofs *OlegFs) Read(con net.Conn, req lib9p.ReadRequest) (b []byte, err error) {
 	b = make([]byte, 0)
+	return
+}
+
+func (ofs *OlegFs) Stat(con net.Conn, req lib9p.StatRequest) (out lib9p.StatResponse, err error) {
+	out = lib9p.StatResponse{
+		Stat: lib9p.Stat{
+			Qid: lib9p.Qid{
+				Type:    lib9p.QtDir,
+				Version: 1,
+				PathId:  0,
+			},
+			Mode:   lib9p.DmDir,
+			Atime:  0,
+			Mtime:  0,
+			Length: 0,
+			Name:   "/",
+			Uid:    "none",
+			Gid:    "none",
+			Muid:   "none",
+		},
+	}
 	return
 }

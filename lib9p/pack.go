@@ -78,3 +78,19 @@ func pqid(qid Qid) []byte {
 	copy(buf[5:13], le(qid.PathId))
 	return buf
 }
+
+func pstat(stat Stat) []byte {
+	sbytes := make([]byte, 41) /* Type(2)+Dev(4)+Qid(13)+Mode(4)+Atime(4)+Mtime(4)+Length(8) */
+	copy(sbytes[0:2], le(uint16(45+len(stat.Uid)+len(stat.Gid)+len(stat.Muid))))
+	copy(sbytes[2:4], le(stat.Type))
+	copy(sbytes[4:8], le(stat.Dev))
+	copy(sbytes[8:21], pqid(stat.Qid))
+	copy(sbytes[21:25], le(stat.Mode))
+	copy(sbytes[25:29], le(stat.Atime))
+	copy(sbytes[29:33], le(stat.Mtime))
+	copy(sbytes[33:41], le(stat.Length))
+	sbytes = append(sbytes[:], pstr(stat.Uid)[:]...)
+	sbytes = append(sbytes[:], pstr(stat.Gid)[:]...)
+	sbytes = append(sbytes[:], pstr(stat.Muid)[:]...)
+	return sbytes
+}

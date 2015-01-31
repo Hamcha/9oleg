@@ -56,6 +56,10 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 			Offset: uint64(dle(b[11:19])),
 			Count:  uint32(dle(b[19:23])),
 		}
+	case Tstat:
+		data = StatRequest{
+			Fid: uint32(dle(b[7:11])),
+		}
 	case Tflush:
 		data = FlushRequest{
 			OldTag: uint32(dle(b[7:11])),
@@ -88,6 +92,8 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 		open := data.(OpenResponse)
 		bytes = pqid(open.Qid)
 		bytes = append(bytes[:], le(open.IoUnit)[:]...)
+	case StatResponse:
+		bytes = pstat(data.(StatResponse).Stat)
 	case ErrorData:
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:
