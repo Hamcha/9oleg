@@ -67,7 +67,7 @@ func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
 	}
 
 	if _, ok = client.Fids[req.Fid]; !ok {
-		return errors.New("inexistand fid")
+		return errors.New("inexistant fid")
 	}
 	return nil
 }
