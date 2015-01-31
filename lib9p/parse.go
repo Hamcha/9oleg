@@ -74,6 +74,9 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 
 func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 	var bytes []byte
+	if DebugSend {
+		debugWrt(msgType, msgTag, data)
+	}
 	switch data.(type) {
 	case VersionData:
 		ver := data.(VersionData)

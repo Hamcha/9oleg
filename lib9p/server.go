@@ -76,12 +76,15 @@ func readClient(s *Server, con net.Conn) {
 }
 
 func handle(s *Server, con net.Conn, rawmsg []byte) {
+	if DebugBytes {
+		fmt.Printf(col(CBytes, "\nRECV > %0#x\n"), rawmsg)
+	}
 	msg, data := parseMsg(rawmsg)
 	switch data.(type) {
 	case VersionData:
 		ver := data.(VersionData)
-		if Debug {
-			fmt.Printf("(VERSION) MaxSize %d Version \"%s\"\n", ver.MaxSize, ver.Version)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(VERSION) MaxSize %d Version \"%s\"\n"), ver.MaxSize, ver.Version)
 		}
 		err := write(con, makeMsg(Rversion, msg.Tag, ver))
 		if err != nil {
@@ -91,8 +94,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case AuthRequest:
 		auth := data.(AuthRequest)
-		if Debug {
-			fmt.Printf("(AUTH) Afid %0#8x Uname \"%s\" Aname \"%s\"\n", auth.Afid, auth.Uname, auth.Aname)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(AUTH) Afid %0#8x Uname \"%s\" Aname \"%s\"\n"), auth.Afid, auth.Uname, auth.Aname)
 		}
 		if s.OnAuth != nil {
 			resp, err := s.OnAuth(con, auth)
@@ -113,8 +116,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case AttachRequest:
 		att := data.(AttachRequest)
-		if Debug {
-			fmt.Printf("(ATTACH) Fid %0#8x Afid %0#8x Uname \"%s\" Aname \"%s\"\n", att.Fid, att.Afid, att.Uname, att.Aname)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(ATTACH) Fid %0#8x Afid %0#8x Uname \"%s\" Aname \"%s\"\n"), att.Fid, att.Afid, att.Uname, att.Aname)
 		}
 		if s.OnAttach != nil {
 			resp, err := s.OnAttach(con, att)
@@ -132,8 +135,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case WalkRequest:
 		walk := data.(WalkRequest)
-		if Debug {
-			fmt.Printf("(WALK) Fid %0#8x NewFid %0#8x Paths %v\n", walk.Fid, walk.NewFid, walk.Paths)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(WALK) Fid %0#8x NewFid %0#8x Paths %v\n"), walk.Fid, walk.NewFid, walk.Paths)
 		}
 		if s.OnWalk != nil {
 			resp, err := s.OnWalk(con, walk)
@@ -150,8 +153,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		sendErr(con, msg.Tag, "not implemented")
 
 	case ClunkRequest:
-		if Debug {
-			fmt.Printf("(CLUNK) Fid %0#8x\n", data.(ClunkRequest).Fid)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(CLUNK) Fid %0#8x\n"), data.(ClunkRequest).Fid)
 		}
 		if s.OnClunk != nil {
 			err := s.OnClunk(con, data.(ClunkRequest))
@@ -169,8 +172,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case OpenRequest:
 		open := data.(OpenRequest)
-		if Debug {
-			fmt.Printf("(OPEN) Fid %0#8x Mode %0#2x\n", open.Fid, open.Mode)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(OPEN) Fid %0#8x Mode %0#2x\n"), open.Fid, open.Mode)
 		}
 		if s.OnOpen != nil {
 			resp, err := s.OnOpen(con, open)
@@ -188,8 +191,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case ReadRequest:
 		read := data.(ReadRequest)
-		if Debug {
-			fmt.Printf("(READ) Fid %0#8x Offset %0#16x Count %0#8x\n", read.Fid, read.Offset, read.Count)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(READ) Fid %0#8x Offset %0#16x Count %0#8x\n"), read.Fid, read.Offset, read.Count)
 		}
 		if s.OnRead != nil {
 			resp, err := s.OnRead(con, read)
@@ -207,8 +210,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		sendErr(con, msg.Tag, "not implemented")
 
 	case StatRequest:
-		if Debug {
-			fmt.Printf("(STAT) Fid %0#8x\n", data.(StatRequest).Fid)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(STAT) Fid %0#8x\n"), data.(StatRequest).Fid)
 		}
 		if s.OnStat != nil {
 			resp, err := s.OnStat(con, data.(StatRequest))
@@ -225,8 +228,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 
 	case FlushRequest:
 		flu := data.(FlushRequest)
-		if Debug {
-			fmt.Printf("(FLUSH) Tag %0#8x OldTag %0#8x\n", msg.Tag, flu.OldTag)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(FLUSH) Tag %0#8x OldTag %0#8x\n"), msg.Tag, flu.OldTag)
 		}
 		//TODO abort operation with specified tag
 		err := write(con, makeMsg(Rflush, msg.Tag, nil))
@@ -235,8 +238,8 @@ func handle(s *Server, con net.Conn, rawmsg []byte) {
 		}
 
 	case UnknownData:
-		if Debug {
-			fmt.Printf("(UNKNOWN) Type %d Tag %0#8x Data %x\n", msg.Type, msg.Tag, data.(UnknownData).Raw)
+		if DebugReq {
+			fmt.Printf(col(CRecv, "(UNKNOWN) Type %d Tag %0#8x Data %x\n"), msg.Type, msg.Tag, data.(UnknownData).Raw)
 		}
 		sendErr(con, msg.Tag, "unknown command")
 	}
@@ -253,6 +256,9 @@ func parseAddr(addr string) string {
 }
 
 func write(con net.Conn, data []byte) error {
+	if DebugBytes {
+		fmt.Printf(col(CBytes, "SEND < %0#x\n"), data)
+	}
 	remaining := len(data)
 	for remaining > 0 {
 		n, err := con.Write(data)
