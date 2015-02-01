@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./goleg"
 	"./lib9p"
 	"errors"
 	"fmt"
@@ -13,12 +14,24 @@ type Client struct {
 }
 
 type OlegFs struct {
+	vfs     *lib9p.Server
+	db      goleg.Database
 	clients map[net.Conn]Client
 }
 
-func makeFs(dbdir string, dbname string) *lib9p.Server {
+func makeFs(dbdir string, dbname string) *OlegFs {
+	/* Make OlegFs instance */
 	ofs := new(OlegFs)
 	ofs.clients = make(map[net.Conn]Client)
+
+	/* Open OlegDB database */
+	var err error
+	ofs.db, err = goleg.Open(dbdir, dbname, goleg.F_APPENDONLY|goleg.F_LZ4|goleg.F_SPLAYTREE|goleg.F_AOL_FFLUSH)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	/* Make VFS */
 	vfs := new(lib9p.Server)
 	vfs.OnConnError = ofs.ConnError
 	vfs.OnAttach = ofs.Attach
@@ -27,7 +40,9 @@ func makeFs(dbdir string, dbname string) *lib9p.Server {
 	vfs.OnOpen = ofs.Open
 	vfs.OnRead = ofs.Read
 	vfs.OnStat = ofs.Stat
-	return vfs
+
+	ofs.vfs = vfs
+	return ofs
 }
 
 func (ofs *OlegFs) ConnError(con net.Conn, err error) {
@@ -99,7 +114,7 @@ func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResp
 		Version: 1,
 		PathId:  0,
 	}
-	out.IoUnit = 2048
+	out.IoUnit = 4096
 
 	client.Fids[req.Fid] = client.Pwd[:]
 	return

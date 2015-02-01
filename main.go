@@ -7,10 +7,11 @@ import (
 const listenaddr = "*"
 
 func main() {
-	vfs := makeFs("data", "oleg")
+	ofs := makeFs("data", "oleg")
+	defer ofs.db.Close()
 
 	fmt.Println("Listening on " + listenaddr)
-	err := vfs.Listen(listenaddr)
+	err := ofs.vfs.Listen(listenaddr)
 	if err != nil {
 		panic(err.Error())
 	}

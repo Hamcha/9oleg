@@ -1,7 +1,7 @@
 package goleg
 
 /*
-#include "oleg.h"
+#include <olegdb/oleg.h>
 */
 import "C"
 import (

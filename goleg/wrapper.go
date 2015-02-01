@@ -1,11 +1,11 @@
 package goleg
 
 /*
-#cgo CFLAGS: -I../../include
-#cgo LDFLAGS: -loleg
+#cgo CFLAGS: -I/usr/local/include
+#cgo LDFLAGS: -L/usr/local/lib -loleg
 #include <stdlib.h>
-#include "oleg.h"
-#include "cursor.h"
+#include <olegdb/oleg.h>
+#include <olegdb/cursor.h>
 */
 import "C"
 import (
