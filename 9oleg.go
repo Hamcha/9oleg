@@ -44,6 +44,8 @@ func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.Atta
 		Pwd:  make([]string, 0),
 		Fids: make(map[uint32][]string),
 	}
+
+	ofs.clients[con].Fids[req.Fid] = ofs.clients[con].Pwd
 	return
 }
 
@@ -56,8 +58,20 @@ func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResp
 			PathId:  0,
 		}
 		fmt.Printf("Walking to %s..\n", req.Paths[i])
-		//todo Add fid
 	}
+
+	client, ok := ofs.clients[con]
+	if !ok {
+		err = errors.New("Client not found - Please attach first")
+		return
+	}
+	if _, ok = client.Fids[req.Fid]; !ok {
+		err = errors.New("nonexistant fid")
+		return
+	}
+	client.Fids[req.NewFid] = client.Fids[req.Fid]
+	delete(client.Fids, req.Fid)
+
 	return
 }
 
@@ -70,6 +84,7 @@ func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
 	if _, ok = client.Fids[req.Fid]; !ok {
 		return errors.New("nonexistant fid")
 	}
+	delete(client.Fids, req.Fid)
 	return nil
 }
 
