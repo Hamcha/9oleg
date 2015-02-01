@@ -50,6 +50,16 @@ func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.Atta
 }
 
 func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResponse, err error) {
+	client, ok := ofs.clients[con]
+	if !ok {
+		err = errors.New("Client not found - Please attach first")
+		return
+	}
+	if _, ok = client.Fids[req.Fid]; !ok {
+		err = errors.New("nonexistant fid")
+		return
+	}
+
 	out.Qids = make([]lib9p.Qid, len(req.Paths))
 	for i := range out.Qids {
 		out.Qids[i] = lib9p.Qid{
@@ -60,18 +70,7 @@ func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResp
 		fmt.Printf("Walking to %s..\n", req.Paths[i])
 	}
 
-	client, ok := ofs.clients[con]
-	if !ok {
-		err = errors.New("Client not found - Please attach first")
-		return
-	}
-	if _, ok = client.Fids[req.Fid]; !ok {
-		err = errors.New("nonexistant fid")
-		return
-	}
-	client.Fids[req.NewFid] = client.Fids[req.Fid]
-	delete(client.Fids, req.Fid)
-
+	client.Fids[req.NewFid] = client.Pwd
 	return
 }
 

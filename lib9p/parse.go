@@ -96,7 +96,7 @@ func makeMsg(msgType uint8, msgTag uint16, data interface{}) []byte {
 		bytes = pqid(open.Qid)
 		bytes = append(bytes[:], le(open.IoUnit)[:]...)
 	case StatResponse:
-		bytes = pstat(data.(StatResponse).Stat)
+		bytes = pack(pstat(data.(StatResponse).Stat), 2)
 	case ErrorData:
 		bytes = pstr(data.(ErrorData).Message)
 	case UnknownData:

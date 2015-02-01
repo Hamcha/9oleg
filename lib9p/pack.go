@@ -80,8 +80,13 @@ func pqid(qid Qid) []byte {
 }
 
 func pstat(stat Stat) []byte {
-	sbytes := make([]byte, 41) /* Type(2)+Dev(4)+Qid(13)+Mode(4)+Atime(4)+Mtime(4)+Length(8) */
-	copy(sbytes[0:2], le(uint16(47+len(stat.Name)+len(stat.Uid)+len(stat.Gid)+len(stat.Muid))))
+	nlen := len(stat.Name)
+	ulen := len(stat.Uid)
+	glen := len(stat.Gid)
+	mlen := len(stat.Muid)
+	length := 49 + nlen + ulen + glen + mlen
+	sbytes := make([]byte, length)
+	copy(sbytes[0:2], le(uint16(length-2)))
 	copy(sbytes[2:4], le(stat.Type))
 	copy(sbytes[4:8], le(stat.Dev))
 	copy(sbytes[8:21], pqid(stat.Qid))
@@ -89,9 +94,17 @@ func pstat(stat Stat) []byte {
 	copy(sbytes[25:29], le(stat.Atime))
 	copy(sbytes[29:33], le(stat.Mtime))
 	copy(sbytes[33:41], le(stat.Length))
-	sbytes = append(sbytes[:], pstr(stat.Name)[:]...)
-	sbytes = append(sbytes[:], pstr(stat.Uid)[:]...)
-	sbytes = append(sbytes[:], pstr(stat.Gid)[:]...)
-	sbytes = append(sbytes[:], pstr(stat.Muid)[:]...)
+	s := 41
+	e := s + nlen + 2
+	copy(sbytes[s:e], pstr(stat.Name))
+	s = e
+	e = s + ulen + 2
+	copy(sbytes[s:e], pstr(stat.Uid))
+	s = e
+	e = s + glen + 2
+	copy(sbytes[s:e], pstr(stat.Gid))
+	s = e
+	e = s + mlen + 2
+	copy(sbytes[s:e], pstr(stat.Muid))
 	return sbytes
 }
