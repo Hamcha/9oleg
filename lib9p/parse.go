@@ -31,7 +31,7 @@ func parseMsg(b []byte) (msg MessageInfo, data interface{}) {
 	case Twalk:
 		nopaths := uint16(dle(b[15:17]))
 		paths := make([]string, nopaths)
-		offset := 15
+		offset := 17
 		for i := range paths {
 			paths[i] = dstr(b[offset:])
 			offset += 2 + len(paths[i])

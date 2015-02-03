@@ -17,6 +17,25 @@ const (
 	NoUid = 0xffffffff
 )
 
+/* Errors */
+const (
+	ErrBadOffset    = "bad offset"
+	ErrBotch        = "9P protocol botch"
+	ErrNonDirCreate = "create in non-directory"
+	ErrDuplicateFid = "duplicate fid"
+	ErrDuplicateTag = "duplicate tag"
+	ErrIsDirectory  = "is a directory"
+	ErrCantCreate   = "create prohibited"
+	ErrCantRemove   = "remove prohibited"
+	ErrCantStat     = "stat prohibited"
+	ErrNotFound     = "file not found"
+	ErrCantWstat    = "wstat prohibited"
+	ErrDenied       = "permission denied"
+	ErrUnknownFid   = "unknown fid"
+	ErrBadDirectory = "bad directory in wstat"
+	ErrNotOpen      = "file not open"
+)
+
 /* Fcall types */
 const (
 	Topenfd  = 98
