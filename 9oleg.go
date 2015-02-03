@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
 
 type FidData struct {
@@ -165,13 +166,37 @@ func (ofs *OlegFs) getQid(path []string) (lib9p.Qid, error) {
 	var qid lib9p.Qid
 	var err error
 	if len(path) < 1 {
+		// Root dir
 		qid = lib9p.Qid{
 			Type:    lib9p.QtDir,
 			Version: 1,
 			PathId:  0,
 		}
 	} else {
-		err = errors.New(lib9p.ErrNotFound)
+		// Get current fid
+		client, ok := ofs.clients[con]
+		if !ok {
+			return errors.New(lib9p.ErrDenied)
+		}
+
+		if _, ok = client.Fids[req.Fid]; !ok {
+			return errors.New(lib9p.ErrUnknownFid)
+		}
+
+		// Make key from path
+		key := strings.Join(client.Fids[req.Fid].Path, "/")
+		exists := ofs.db.Exists(key)
+		if exists {
+			qid = lib9p.Qid{
+				Type:    lib9p.QtFile,
+				Version: 1,
+				PathId:  0, //todo set this to sha256 or something
+			}
+		} else {
+			//todo Check for prefix matching
+			err = errors.New(lib9p.ErrNotFound)
+		}
+
 	}
 	return qid, err
 }
