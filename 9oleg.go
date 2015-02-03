@@ -8,9 +8,13 @@ import (
 	"net"
 )
 
+type FidData struct {
+	Qid  lib9p.Qid
+	Path []string
+}
+
 type Client struct {
-	Pwd  []string
-	Fids map[uint32][]string
+	Fids map[uint32]FidData
 }
 
 type OlegFs struct {
@@ -50,17 +54,18 @@ func (ofs *OlegFs) ConnError(con net.Conn, err error) {
 }
 
 func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.AttachResponse, err error) {
-	out.Qid = lib9p.Qid{
-		Type:    lib9p.QtDir,
-		Version: 1,
-		PathId:  0,
-	}
+	path := make([]string, 0)
+
+	out.Qid, _ = ofs.getQid(path)
+
 	ofs.clients[con] = Client{
-		Pwd:  make([]string, 0),
-		Fids: make(map[uint32][]string),
+		Fids: make(map[uint32]FidData),
 	}
 
-	ofs.clients[con].Fids[req.Fid] = ofs.clients[con].Pwd
+	ofs.clients[con].Fids[req.Fid] = FidData{
+		Qid:  out.Qid,
+		Path: path,
+	}
 	return
 }
 
@@ -75,21 +80,35 @@ func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResp
 		return
 	}
 
+	current := FidData{
+		Qid:  client.Fids[req.Fid].Qid,
+		Path: client.Fids[req.Fid].Path[:],
+	}
+
 	out.Qids = make([]lib9p.Qid, len(req.Paths))
 	for i := range out.Qids {
 		fmt.Printf("Walking to %s..\n", req.Paths[i])
-		if req.Paths[i] != "." || req.Paths[i] != ".." {
-			err = errors.New(lib9p.ErrNotFound)
-			return
-		}
-		out.Qids[i] = lib9p.Qid{
-			Type:    lib9p.QtDir,
-			Version: 1,
-			PathId:  0,
+
+		switch req.Paths[i] {
+		case ".":
+			out.Qids[i] = current.Qid
+		case "..":
+			nlen := len(current.Path) - 1
+			if nlen < 0 {
+				nlen = 0
+			}
+			current.Qid, err = ofs.getQid(current.Path[:nlen])
+			out.Qids[i] = current.Qid
+		default:
+			current.Path = append(current.Path, req.Paths[i])
+			out.Qids[i], err = ofs.getQid(current.Path)
+			if err != nil {
+				return
+			}
 		}
 	}
 
-	client.Fids[req.NewFid] = client.Pwd
+	client.Fids[req.NewFid] = current
 	return
 }
 
@@ -107,20 +126,12 @@ func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
 }
 
 func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResponse, err error) {
-	client, ok := ofs.clients[con]
-	if !ok {
-		err = errors.New(lib9p.ErrDenied)
-		return
-	}
-
 	out.Qid = lib9p.Qid{
 		Type:    lib9p.QtDir,
 		Version: 1,
 		PathId:  0,
 	}
 	out.IoUnit = 4096
-
-	client.Fids[req.Fid] = client.Pwd[:]
 	return
 }
 
@@ -148,4 +159,19 @@ func (ofs *OlegFs) Stat(con net.Conn, req lib9p.StatRequest) (out lib9p.StatResp
 		},
 	}
 	return
+}
+
+func (ofs *OlegFs) getQid(path []string) (lib9p.Qid, error) {
+	var qid lib9p.Qid
+	var err error
+	if len(path) < 1 {
+		qid = lib9p.Qid{
+			Type:    lib9p.QtDir,
+			Version: 1,
+			PathId:  0,
+		}
+	} else {
+		err = errors.New(lib9p.ErrNotFound)
+	}
+	return qid, err
 }
