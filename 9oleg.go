@@ -244,6 +244,10 @@ func (ofs *OlegFs) getMeta(path []string) (stat lib9p.Stat, err error) {
 				err = json.Unmarshal(ofs.db.Unjar("_ofsmeta_"+key), &stat)
 			} else {
 				stat = ofs.makeMeta(path)
+				data, err := json.Marshal(stat)
+				if err == nil {
+					ofs.db.Jar("_ofsmeta_"+key, data)
+				}
 			}
 		} else {
 			err = errors.New(lib9p.ErrNotFound)
