@@ -3,10 +3,12 @@ package main
 import (
 	"./goleg"
 	"./lib9p"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 type FidData struct {
@@ -56,7 +58,6 @@ func (ofs *OlegFs) ConnError(con net.Conn, err error) {
 
 func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.AttachResponse, err error) {
 	path := make([]string, 0)
-
 	out.Qid, _ = ofs.getQid(path)
 
 	ofs.clients[con] = Client{
@@ -67,6 +68,7 @@ func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.Atta
 		Qid:  out.Qid,
 		Path: path,
 	}
+
 	return
 }
 
@@ -142,29 +144,26 @@ func (ofs *OlegFs) Read(con net.Conn, req lib9p.ReadRequest) (b []byte, err erro
 }
 
 func (ofs *OlegFs) Stat(con net.Conn, req lib9p.StatRequest) (out lib9p.StatResponse, err error) {
+	client, ok := ofs.clients[con]
+	if !ok {
+		err = errors.New(lib9p.ErrDenied)
+		return
+	}
+
+	var fid FidData
+	if fid, ok = client.Fids[req.Fid]; !ok {
+		err = errors.New(lib9p.ErrUnknownFid)
+		return
+	}
+
+	meta, err := ofs.getMeta(fid.Path)
 	out = lib9p.StatResponse{
-		Stat: lib9p.Stat{
-			Qid: lib9p.Qid{
-				Type:    lib9p.QtDir,
-				Version: 1,
-				PathId:  0,
-			},
-			Mode:   lib9p.DmDir,
-			Atime:  0,
-			Mtime:  0,
-			Length: 0,
-			Name:   "/",
-			Uid:    "none",
-			Gid:    "none",
-			Muid:   "none",
-		},
+		Stat: meta,
 	}
 	return
 }
 
-func (ofs *OlegFs) getQid(path []string) (lib9p.Qid, error) {
-	var qid lib9p.Qid
-	var err error
+func (ofs *OlegFs) getQid(path []string) (qid lib9p.Qid, err error) {
 	if len(path) < 1 {
 		// Root dir
 		qid = lib9p.Qid{
@@ -173,18 +172,18 @@ func (ofs *OlegFs) getQid(path []string) (lib9p.Qid, error) {
 			PathId:  0,
 		}
 	} else {
-		// Get current fid
-		client, ok := ofs.clients[con]
-		if !ok {
-			return errors.New(lib9p.ErrDenied)
-		}
-
-		if _, ok = client.Fids[req.Fid]; !ok {
-			return errors.New(lib9p.ErrUnknownFid)
+		// Check for special cases
+		if len(path) == 1 && path[0] == "ctl" {
+			qid = lib9p.Qid{
+				Type:    lib9p.QtFile,
+				Version: 1,
+				PathId:  1,
+			}
+			return
 		}
 
 		// Make key from path
-		key := strings.Join(client.Fids[req.Fid].Path, "/")
+		key := strings.Join(path, "/")
 		exists := ofs.db.Exists(key)
 		if exists {
 			qid = lib9p.Qid{
@@ -193,10 +192,80 @@ func (ofs *OlegFs) getQid(path []string) (lib9p.Qid, error) {
 				PathId:  0, //todo set this to sha256 or something
 			}
 		} else {
-			//todo Check for prefix matching
 			err = errors.New(lib9p.ErrNotFound)
 		}
 
 	}
-	return qid, err
+	return
+}
+
+func (ofs *OlegFs) getMeta(path []string) (stat lib9p.Stat, err error) {
+	fullpath := strings.Join(path, "/")
+	if len(path) < 1 {
+		// Root dir
+		now := time.Now().Unix()
+		qid, _ := ofs.getQid(path)
+		stat = lib9p.Stat{
+			Qid:    qid,
+			Mode:   lib9p.DmDir,
+			Atime:  uint32(now),
+			Mtime:  uint32(now),
+			Length: 0,
+			Name:   fullpath,
+			Uid:    "none",
+			Gid:    "none",
+			Muid:   "none",
+		}
+	} else {
+		// Check for special cases
+		if len(path) == 1 && path[0] == "ctl" {
+			qid, _ := ofs.getQid(path)
+			now := time.Now().Unix()
+			stat = lib9p.Stat{
+				Qid:    qid,
+				Mode:   lib9p.DmDir,
+				Atime:  uint32(now),
+				Mtime:  0,
+				Length: 0,
+				Name:   fullpath,
+				Uid:    "none",
+				Gid:    "none",
+				Muid:   "none",
+			}
+			return
+		}
+
+		// Make key from path
+		key := strings.Join(path, "/")
+		exists := ofs.db.Exists(key)
+		if exists {
+			metaexists := ofs.db.Exists("_ofsmeta_" + key)
+			if metaexists {
+				err = json.Unmarshal(ofs.db.Unjar("_ofsmeta_"+key), &stat)
+			} else {
+				stat = ofs.makeMeta(path)
+			}
+		} else {
+			err = errors.New(lib9p.ErrNotFound)
+		}
+
+	}
+	return
+}
+
+func (ofs *OlegFs) makeMeta(path []string) lib9p.Stat {
+	fullpath := strings.Join(path, "/")
+	now := time.Now().Unix()
+	qid, _ := ofs.getQid(path)
+	return lib9p.Stat{
+		Qid:    qid,
+		Mode:   0,
+		Atime:  uint32(now),
+		Mtime:  uint32(now),
+		Length: uint64(ofs.db.GetSize(fullpath)),
+		Name:   fullpath,
+		Uid:    "none",
+		Gid:    "none",
+		Muid:   "none",
+	}
 }
