@@ -73,19 +73,14 @@ func (ofs *OlegFs) Attach(con net.Conn, req lib9p.AttachRequest) (out lib9p.Atta
 }
 
 func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResponse, err error) {
-	client, ok := ofs.clients[con]
-	if !ok {
-		err = errors.New(lib9p.ErrDenied)
-		return
-	}
-	if _, ok = client.Fids[req.Fid]; !ok {
-		err = errors.New(lib9p.ErrUnknownFid)
+	client, fid, err := ofs.getFC(con, req.Fid)
+	if err != nil {
 		return
 	}
 
 	current := FidData{
-		Qid:  client.Fids[req.Fid].Qid,
-		Path: client.Fids[req.Fid].Path[:],
+		Qid:  fid.Qid,
+		Path: fid.Path[:],
 	}
 
 	out.Qids = make([]lib9p.Qid, len(req.Paths))
@@ -116,43 +111,61 @@ func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResp
 }
 
 func (ofs *OlegFs) Clunk(con net.Conn, req lib9p.ClunkRequest) error {
-	client, ok := ofs.clients[con]
-	if !ok {
-		return errors.New(lib9p.ErrDenied)
+	client, _, err := ofs.getFC(con, req.Fid)
+	if err != nil {
+		return err
 	}
 
-	if _, ok = client.Fids[req.Fid]; !ok {
-		return errors.New(lib9p.ErrUnknownFid)
-	}
 	delete(client.Fids, req.Fid)
 	return nil
 }
 
 func (ofs *OlegFs) Open(con net.Conn, req lib9p.OpenRequest) (out lib9p.OpenResponse, err error) {
-	out.Qid = lib9p.Qid{
-		Type:    lib9p.QtDir,
-		Version: 1,
-		PathId:  0,
+	_, fid, err := ofs.getFC(con, req.Fid)
+	if err != nil {
+		return
 	}
+	out.Qid, err = ofs.getQid(fid.Path)
 	out.IoUnit = 4096
 	return
 }
 
 func (ofs *OlegFs) Read(con net.Conn, req lib9p.ReadRequest) (b []byte, err error) {
-	b = make([]byte, 0)
+	_, fid, err := ofs.getFC(con, req.Fid)
+	key := strings.Join(fid.Path, "/")
+
+	// Check if we need to do a directory read or file read
+	if fid.Qid.Type == lib9p.QtDir {
+		//todo
+		err = errors.New("Directory listing not implemented")
+	} else {
+		// Any clever client should stat first, but you never know..
+		if !ofs.db.Exists(key) {
+			err = errors.New(lib9p.ErrNotFound)
+			return
+		}
+
+		// Return early if the offset is too big, spare us some unjars
+		datasize := uint64(ofs.db.GetSize(key))
+		if req.Offset > datasize {
+			b = make([]byte, 0)
+			return
+		}
+
+		// Unjar and send
+		data := ofs.db.Unjar(key)
+		limit := req.Offset + uint64(req.Count)
+		if limit > datasize {
+			limit = datasize
+		}
+		b = data[req.Offset:limit]
+	}
 	return
 }
 
 func (ofs *OlegFs) Stat(con net.Conn, req lib9p.StatRequest) (out lib9p.StatResponse, err error) {
-	client, ok := ofs.clients[con]
-	if !ok {
-		err = errors.New(lib9p.ErrDenied)
-		return
-	}
-
-	var fid FidData
-	if fid, ok = client.Fids[req.Fid]; !ok {
-		err = errors.New(lib9p.ErrUnknownFid)
+	_, fid, err := ofs.getFC(con, req.Fid)
+	if err != nil {
 		return
 	}
 
@@ -161,6 +174,20 @@ func (ofs *OlegFs) Stat(con net.Conn, req lib9p.StatRequest) (out lib9p.StatResp
 		Stat: meta,
 	}
 	return
+}
+
+func (ofs *OlegFs) getFC(con net.Conn, fid uint32) (*Client, *FidData, error) {
+	client, ok := ofs.clients[con]
+	if !ok {
+		return nil, nil, errors.New(lib9p.ErrDenied)
+	}
+
+	fidData, ok := client.Fids[fid]
+	if !ok {
+		return nil, nil, errors.New(lib9p.ErrUnknownFid)
+	}
+
+	return &client, &fidData, nil
 }
 
 func (ofs *OlegFs) getQid(path []string) (qid lib9p.Qid, err error) {
