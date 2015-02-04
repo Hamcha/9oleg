@@ -99,10 +99,11 @@ func (ofs *OlegFs) Walk(con net.Conn, req lib9p.WalkRequest) (out lib9p.WalkResp
 			out.Qids[i] = current.Qid
 		default:
 			current.Path = append(current.Path, req.Paths[i])
-			out.Qids[i], err = ofs.getQid(current.Path)
+			current.Qid, err = ofs.getQid(current.Path)
 			if err != nil {
 				return
 			}
+			out.Qids[i] = current.Qid
 		}
 	}
 
@@ -139,6 +140,13 @@ func (ofs *OlegFs) Read(con net.Conn, req lib9p.ReadRequest) (b []byte, err erro
 		//todo
 		err = errors.New("Directory listing not implemented")
 	} else {
+		// /ctl is a special file
+		if key == "ctl" {
+			//todo
+			b = make([]byte, 0)
+			return
+		}
+
 		// Any clever client should stat first, but you never know..
 		if !ofs.db.Exists(key) {
 			err = errors.New(lib9p.ErrNotFound)
@@ -250,7 +258,7 @@ func (ofs *OlegFs) getMeta(path []string) (stat lib9p.Stat, err error) {
 			now := time.Now().Unix()
 			stat = lib9p.Stat{
 				Qid:    qid,
-				Mode:   lib9p.DmDir,
+				Mode:   0,
 				Atime:  uint32(now),
 				Mtime:  0,
 				Length: 0,
