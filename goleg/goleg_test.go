@@ -3,6 +3,7 @@ package goleg
 import (
 	"bytes"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strconv"
 	"testing"
@@ -114,5 +115,30 @@ func TestFullKeyDump(t *testing.T) {
 	}
 	if j != JARN {
 		t.Fatal("One or more keys did not dump")
+	}
+}
+
+func TestSize(t *testing.T) {
+	database, _, err := openRandomDB(F_LZ4 | F_SPLAYTREE)
+	if err != nil {
+		t.Fatalf("Can't open database: %s", err.Error())
+	}
+
+	rand.Seed(0)
+	sizs := make([]int, 100)
+	for i := range sizs {
+		sizs[i] = rand.Intn(2048)
+		vals := make([]byte, sizs[i])
+		for j := 0; j < sizs[i]; j++ {
+			vals[j] = byte(rand.Intn(255))
+		}
+		database.Jar("test"+strconv.Itoa(i), vals)
+	}
+
+	for i := range sizs {
+		siz := database.GetSize("test" + strconv.Itoa(i))
+		if siz != sizs[i] {
+			t.Fatal("Size mismatch")
+		}
 	}
 }

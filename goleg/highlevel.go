@@ -135,3 +135,12 @@ func (d Database) Prev(key string) (bool, string, []byte) {
 	}
 	return CNodeGet(d.db, node)
 }
+
+func (d Database) GetSize(key string) int {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	var _key string
+	var _klen uintptr
+	bucket := CGetBucket(d.db, key, uintptr(len(key)), &_key, &_klen)
+	return int(bucket.original_size)
+}
